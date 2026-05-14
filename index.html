@@ -1055,7 +1055,12 @@
       if (finalTranscript.trim() && !isFixing) {
         autoFixTimer = setTimeout(function() {
           if (finalTranscript.trim() && !isFixing) {
-            fixGrammar();
+            if (!groqApiKey) {
+              console.warn('Auto-fix skipped: No API key. Add one in settings ⚙️');
+            } else {
+              console.log('Auto-fixing grammar...');
+              fixGrammar();
+            }
           }
         }, AUTO_FIX_DELAY);
       }
@@ -1115,7 +1120,7 @@
       }
 
       if (!groqApiKey) {
-        showToast('No API key found. Click the settings icon (⚙️) to add your Groq API key.', 'error');
+        console.warn('No API key. Grammar fix skipped.');
         return;
       }
 
@@ -1182,7 +1187,10 @@
 
     function translateText(targetLang, targetLangName) {
       if (!finalTranscript.trim()) return;
-      if (!groqApiKey) { showToast('No API key found. Click the settings icon (⚙️) to add your Groq API key.', 'error'); return; }
+      if (!groqApiKey) {
+        console.warn('No API key. Language translation skipped. Enter your API key in settings ⚙️');
+        return;
+      }
 
       setButtonsLoading(true);
 
@@ -1583,7 +1591,14 @@
         }
 
         if (finalTranscript.trim() && LANG_NAMES[newLang]) {
-          translateText(newLang, LANG_NAMES[newLang]);
+          if (!groqApiKey) {
+            console.warn('Cannot translate: No API key set. Enter your API key in settings ⚙️ first.');
+            showToast('Add your API key in settings ⚙️ to translate text.', 'warning');
+          } else {
+            translateText(newLang, LANG_NAMES[newLang]);
+          }
+        } else if (!finalTranscript.trim()) {
+          console.log('Language switched to ' + LANG_NAMES[newLang] + '. Start speaking to record.');
         }
 
         currentLangGroup = newGroup;
@@ -1646,6 +1661,15 @@
     transcriptDiv.classList.add('transcript--empty');
     loadApiKey();
     loadHistory();
+
+    window.addEventListener('load', function() {
+      console.log('WhisperFlow loaded');
+      console.log('API Key loaded:', !!groqApiKey);
+      console.log('Speech Recognition supported:', !!recognition);
+      if (!groqApiKey) {
+        console.warn('⚠️ No API key detected. Click settings icon (⚙️) to add your Groq API key.');
+      }
+    });
   </script>
 </body>
 </html>
