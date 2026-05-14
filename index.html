@@ -6,7 +6,7 @@
   <title>WhisperFlow</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
   <style>
     :root {
       --bg: #FFFFFF;
@@ -575,6 +575,109 @@
       to { transform: rotate(360deg); }
     }
 
+    .settings-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 18px;
+      cursor: pointer;
+      padding: 4px 6px;
+      border-radius: var(--radius-sm);
+      transition: color var(--transition);
+      line-height: 1;
+    }
+
+    .settings-btn:hover {
+      color: var(--text-primary);
+    }
+
+    .settings-popover {
+      display: none;
+      position: absolute;
+      top: calc(100% + 6px);
+      right: 0;
+      background: #FFFFFF;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+      z-index: 100;
+      min-width: 320px;
+    }
+
+    .settings-popover--visible {
+      display: block;
+      animation: popoverIn 150ms ease;
+    }
+
+    @keyframes popoverIn {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .settings-popover__label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+    }
+
+    .settings-popover__input {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-family: var(--font-mono);
+      color: var(--text-primary);
+      background: var(--surface);
+      transition: border-color var(--transition);
+    }
+
+    .settings-popover__input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+    }
+
+    .settings-popover__save {
+      margin-top: 10px;
+      padding: 6px 16px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: opacity var(--transition);
+    }
+
+    .settings-popover__save:hover {
+      opacity: 0.85;
+    }
+
+    .settings-popover__status {
+      margin-top: 8px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .settings-popover__status--ok {
+      color: var(--success);
+    }
+
+    .settings-popover__status--err {
+      color: var(--error);
+    }
+
+    .topbar__right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      position: relative;
+    }
+
     @media (max-width: 768px) {
       .topbar__inner {
         width: 100%;
@@ -686,7 +789,16 @@
   <header class="topbar">
     <div class="topbar__inner">
       <div class="topbar__wordmark">Whisper<span>Flow</span><span class="recording-indicator" id="recordingIndicator"></span></div>
-      <a class="topbar__download" href="dist/WhisperFlow.exe" download>Download Desktop App</a>
+      <div class="topbar__right">
+        <a class="topbar__download" href="https://github.com/Gongwasubash/wisperflow/releases" target="_blank" rel="noopener">Download Desktop App</a>
+        <button class="settings-btn" id="settingsBtn" type="button" aria-label="Settings" title="API Key Settings">&#9881;</button>
+        <div class="settings-popover" id="settingsPopover">
+          <label class="settings-popover__label" for="apiKeyInput">Groq API Key (Required for Grammar Fix)</label>
+          <input class="settings-popover__input" id="apiKeyInput" type="password" placeholder="Get free key at console.groq.com" autocomplete="off">
+          <button class="settings-popover__save" id="apiKeySave" type="button">Save</button>
+          <div class="settings-popover__status" id="apiKeyStatus"></div>
+        </div>
+      </div>
     </div>
   </header>
 
@@ -875,23 +987,25 @@
         return;
       }
 
-      fetch('groq.key')
-        .then(function(res) { return res.text(); })
-        .then(function(text) {
-          var cleaned = text.replace(/^\uFEFF/, '').trim();
-          var lines = cleaned.split('\n');
-          for (var i = 0; i < lines.length; i++) {
-            var line = lines[i].trim();
-            if (line.indexOf('GROQ_API_KEY=') === 0) {
-              groqApiKey = line.slice('GROQ_API_KEY='.length).trim().replace(/^["']|["']$/g, '');
-              if (groqApiKey) {
-                sessionStorage.setItem('wf_groq_key', groqApiKey);
+      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        fetch('groq.key')
+          .then(function(res) { return res.text(); })
+          .then(function(text) {
+            var cleaned = text.replace(/^\uFEFF/, '').trim();
+            var lines = cleaned.split('\n');
+            for (var i = 0; i < lines.length; i++) {
+              var line = lines[i].trim();
+              if (line.indexOf('GROQ_API_KEY=') === 0) {
+                groqApiKey = line.slice('GROQ_API_KEY='.length).trim().replace(/^["']|["']$/g, '');
+                if (groqApiKey) {
+                  sessionStorage.setItem('wf_groq_key', groqApiKey);
+                }
+                break;
               }
-              break;
             }
-          }
-        })
-        .catch(function() {});
+          })
+          .catch(function() {});
+      }
     }
 
     // UI helpers
@@ -1001,7 +1115,7 @@
       }
 
       if (!groqApiKey) {
-        showToast('No API key found. Add one via sessionStorage or a groq.key file.', 'error');
+        showToast('No API key found. Click the settings icon (⚙️) to add your Groq API key.', 'error');
         return;
       }
 
@@ -1055,7 +1169,7 @@
         if (error.code === 401 || error.code === 403) {
           sessionStorage.removeItem('wf_groq_key');
           groqApiKey = '';
-          showToast('Invalid Groq API key. Store a valid key in sessionStorage as wf_groq_key or groq.key file.', 'error');
+          showToast('Invalid Groq API key. Check the key in settings and try again.', 'error');
         } else if (error.code === 429) {
           showToast('Rate limit hit. Wait a moment and try again.', 'warning');
         } else if (error.code) {
@@ -1068,7 +1182,7 @@
 
     function translateText(targetLang, targetLangName) {
       if (!finalTranscript.trim()) return;
-      if (!groqApiKey) { showToast('No API key found. Add one via sessionStorage or a groq.key file.', 'error'); return; }
+      if (!groqApiKey) { showToast('No API key found. Click the settings icon (⚙️) to add your Groq API key.', 'error'); return; }
 
       setButtonsLoading(true);
 
@@ -1475,6 +1589,52 @@
         currentLangGroup = newGroup;
       });
     }
+
+    // Settings popover
+    var settingsBtn = document.getElementById('settingsBtn');
+    var settingsPopover = document.getElementById('settingsPopover');
+    var apiKeyInput = document.getElementById('apiKeyInput');
+    var apiKeySave = document.getElementById('apiKeySave');
+    var apiKeyStatus = document.getElementById('apiKeyStatus');
+
+    settingsBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      settingsPopover.classList.toggle('settings-popover--visible');
+      if (settingsPopover.classList.contains('settings-popover--visible')) {
+        apiKeyInput.value = groqApiKey || '';
+        apiKeyStatus.textContent = groqApiKey ? 'Key is set' : 'No key saved yet';
+        apiKeyStatus.className = 'settings-popover__status' + (groqApiKey ? ' settings-popover__status--ok' : '');
+        apiKeyInput.focus();
+      }
+    });
+
+    document.addEventListener('click', function() {
+      settingsPopover.classList.remove('settings-popover--visible');
+    });
+
+    settingsPopover.addEventListener('click', function(e) {
+      e.stopPropagation();
+    });
+
+    apiKeyInput.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') { apiKeySave.click(); }
+    });
+
+    apiKeySave.addEventListener('click', function() {
+      var key = apiKeyInput.value.trim();
+      if (!key) {
+        apiKeyStatus.textContent = 'Please enter a valid API key';
+        apiKeyStatus.className = 'settings-popover__status settings-popover__status--err';
+        return;
+      }
+      groqApiKey = key;
+      sessionStorage.setItem('wf_groq_key', key);
+      apiKeyStatus.textContent = 'Key saved successfully';
+      apiKeyStatus.className = 'settings-popover__status settings-popover__status--ok';
+      setTimeout(function() {
+        settingsPopover.classList.remove('settings-popover--visible');
+      }, 1000);
+    });
 
     window.addEventListener('beforeunload', function() {
       if (recognition) {
