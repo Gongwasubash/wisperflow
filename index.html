@@ -1001,7 +1001,7 @@
       }
 
       if (!groqApiKey) {
-        showToast('GROQ_API_KEY not found in .env file.', 'error');
+        showToast('No API key found. Add one via sessionStorage or a groq.key file.', 'error');
         return;
       }
 
@@ -1055,7 +1055,7 @@
         if (error.code === 401 || error.code === 403) {
           sessionStorage.removeItem('wf_groq_key');
           groqApiKey = '';
-          showToast('Invalid Groq API key.', 'error', { label: 'Enter Key', callback: showApiKeyInput });
+          showToast('Invalid Groq API key. Store a valid key in sessionStorage as wf_groq_key or groq.key file.', 'error');
         } else if (error.code === 429) {
           showToast('Rate limit hit. Wait a moment and try again.', 'warning');
         } else if (error.code) {
@@ -1068,7 +1068,7 @@
 
     function translateText(targetLang, targetLangName) {
       if (!finalTranscript.trim()) return;
-      if (!groqApiKey) { showApiKeyInput(); return; }
+      if (!groqApiKey) { showToast('No API key found. Add one via sessionStorage or a groq.key file.', 'error'); return; }
 
       setButtonsLoading(true);
 
