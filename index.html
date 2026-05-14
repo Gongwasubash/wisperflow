@@ -1,0 +1,1491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WhisperFlow</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #FFFFFF;
+      --surface: #F8F9FA;
+      --surface-hover: #F0F1F2;
+      --border: #E0E0E0;
+      --text-primary: #1A1A1A;
+      --text-secondary: #555555;
+      --text-muted: #999999;
+      --accent: #2563EB;
+      --accent-dim: #1D4ED8;
+      --error: #DC2626;
+      --success: #16A34A;
+      --warning: #D97706;
+      --diff-insert-bg: rgba(37, 99, 235, 0.08);
+      --diff-insert-text: #2563EB;
+      --diff-delete-bg: rgba(220, 38, 38, 0.08);
+      --diff-delete-text: #DC2626;
+      --diff-change-bg: rgba(217, 119, 6, 0.12);
+      --diff-change-text: #D97706;
+      --font-ui: 'Inter', -apple-system, sans-serif;
+      --font-mono: 'Geist Mono', 'JetBrains Mono', monospace;
+      --radius: 8px;
+      --radius-sm: 4px;
+      --transition: 150ms ease;
+      --topbar-height: 56px;
+      --langbar-height: 44px;
+    }
+
+    *, *::before, *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      background: var(--bg);
+      color: var(--text-primary);
+      font-family: var(--font-ui);
+      font-size: 15px;
+      line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    button {
+      font-family: inherit;
+      font-size: inherit;
+      cursor: pointer;
+      border: none;
+      background: none;
+      color: inherit;
+      outline: none;
+    }
+
+    button:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    input, select {
+      font-family: inherit;
+      font-size: inherit;
+      outline: none;
+    }
+
+    ::selection {
+      background: rgba(37, 99, 235, 0.2);
+      color: var(--text-primary);
+    }
+
+    ::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #222;
+      border-radius: 2px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--text-muted);
+    }
+
+    .browser-banner {
+      display: none;
+      background: rgba(245, 158, 11, 0.12);
+      border-bottom: 1px solid rgba(245, 158, 11, 0.25);
+      color: var(--warning);
+      text-align: center;
+      padding: 10px 20px;
+      font-size: 13px;
+      font-family: var(--font-ui);
+      line-height: 1.5;
+    }
+
+    .browser-banner--visible {
+      display: block;
+    }
+
+    .topbar {
+      height: var(--topbar-height);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-bottom: 1px solid var(--border);
+      background: #FFFFFF;
+    }
+
+    .topbar__inner {
+      width: 70%;
+      max-width: 960px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .topbar__wordmark {
+      font-family: var(--font-mono);
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--text-primary);
+      letter-spacing: -0.02em;
+      display: flex;
+      align-items: center;
+      gap: 0;
+    }
+
+    .topbar__wordmark span {
+      color: var(--accent);
+    }
+
+    .topbar__download {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      background: var(--accent);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 600;
+      border-radius: var(--radius-sm);
+      text-decoration: none;
+      font-family: var(--font-ui);
+      transition: opacity var(--transition);
+      white-space: nowrap;
+    }
+
+    .topbar__download:hover {
+      opacity: 0.85;
+    }
+
+    .recording-indicator {
+      display: none;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      margin-left: 8px;
+      vertical-align: middle;
+      flex-shrink: 0;
+    }
+
+    body:has(.controls__btn--recording) .recording-indicator {
+      display: inline-block;
+      animation: pulse-dot 1.4s ease-out infinite;
+    }
+
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.25; }
+    }
+
+    .langbar {
+      height: var(--langbar-height);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 24px;
+      gap: 6px;
+      background: #FFFFFF;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .langbar__chip {
+      padding: 5px 14px;
+      border-radius: 100px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-secondary);
+      font-family: var(--font-ui);
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      transition: all var(--transition);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .langbar__chip:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: rgba(37, 99, 235, 0.04);
+    }
+
+    .langbar__chip--active {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: rgba(37, 99, 235, 0.1);
+    }
+
+    .content-container {
+      width: 70%;
+      max-width: 960px;
+      margin: 0 auto;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding-bottom: 80px;
+      min-height: 0;
+    }
+
+    .transcript {
+      flex: 1;
+      min-height: 0;
+      margin: 16px 0 12px;
+      padding: 28px 32px;
+      background: #FFFFFF;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+      font-family: var(--font-mono);
+      font-size: 18px;
+      line-height: 1.85;
+      color: var(--text-primary);
+      overflow-y: auto;
+      position: relative;
+      transition: border-color var(--transition), box-shadow var(--transition);
+    }
+
+    .transcript:focus-within {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+
+    .transcript:empty::before {
+      content: 'Press the mic button and start speaking...';
+      color: #BBBBBB;
+      font-family: var(--font-ui);
+      font-weight: 400;
+      font-style: italic;
+      pointer-events: none;
+    }
+
+    .transcript__interim {
+      color: var(--text-muted);
+      font-style: italic;
+    }
+
+    .transcript__interim::after {
+      content: '';
+      display: inline-block;
+      width: 2px;
+      height: 1.1em;
+      background: var(--accent);
+      margin-left: 2px;
+      vertical-align: text-bottom;
+      animation: cursorBlink 1s step-end infinite;
+    }
+
+    @keyframes cursorBlink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+
+    .stats {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      padding: 0 0 10px;
+      font-family: var(--font-ui);
+      font-size: 13px;
+      font-weight: 400;
+      color: #666666;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .stats__item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .stats__separator {
+      color: var(--border);
+    }
+
+    .controls {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 80px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 0 24px;
+      background: #FFFFFF;
+      border-top: 1px solid var(--border);
+      z-index: 40;
+    }
+
+    .controls__btn {
+      padding: 8px 18px;
+      height: 36px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text-secondary);
+      font-family: var(--font-ui);
+      font-size: 14px;
+      font-weight: 500;
+      transition: all var(--transition);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .controls__btn:hover {
+      background: var(--surface-hover);
+      border-color: var(--text-muted);
+      color: var(--text-primary);
+    }
+
+    .controls__btn:disabled {
+      opacity: 0.25;
+      cursor: not-allowed;
+    }
+
+    .controls__btn:disabled:hover {
+      background: var(--surface);
+      border-color: var(--border);
+      color: var(--text-secondary);
+      opacity: 0.25;
+    }
+
+    .controls__btn--primary {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+
+    .controls__btn--primary:hover {
+      background: var(--accent-dim);
+      border-color: var(--accent-dim);
+      color: #fff;
+    }
+
+    .controls__btn--primary:disabled {
+      background: var(--surface);
+      border-color: var(--border);
+      color: var(--text-muted);
+      opacity: 0.25;
+    }
+
+    .controls__btn--primary:disabled:hover {
+      background: var(--surface);
+      border-color: var(--border);
+      color: var(--text-muted);
+      opacity: 0.25;
+    }
+
+    .controls__btn--secondary {
+      background: transparent;
+      border-color: var(--border);
+      color: var(--text-secondary);
+    }
+
+    .controls__btn--secondary:hover {
+      background: var(--surface-hover);
+      border-color: var(--text-muted);
+      color: var(--text-primary);
+    }
+
+    .controls__btn--mic {
+      position: relative;
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      background: #FFFFFF;
+      border: 2px solid var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      transition: all var(--transition);
+      color: var(--accent);
+      cursor: pointer;
+    }
+
+    .controls__btn--mic:hover {
+      background: rgba(37, 99, 235, 0.06);
+    }
+
+    .controls__btn--recording {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    .controls__btn--recording:hover {
+      background: var(--accent-dim);
+      border-color: var(--accent-dim);
+      color: #fff;
+    }
+
+    .controls__btn--recording::before {
+      content: '';
+      position: absolute;
+      inset: -5px;
+      border-radius: 50%;
+      animation: pulse-ring 1.4s ease-out infinite;
+    }
+
+    @keyframes pulse-ring {
+      0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.35); }
+      70% { box-shadow: 0 0 0 10px rgba(37, 99, 235, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
+    }
+
+    .controls__btn--icon {
+      position: relative;
+      padding: 8px 12px;
+      font-size: 16px;
+    }
+
+    .controls__btn--icon:hover {
+      background: var(--surface-hover);
+      color: var(--text-primary);
+    }
+
+    .history-btn__badge {
+      display: none;
+      position: absolute;
+      top: -4px;
+      right: -4px;
+      min-width: 16px;
+      height: 16px;
+      padding: 0 4px;
+      border-radius: 8px;
+      background: var(--accent);
+      color: #fff;
+      font-size: 10px;
+      font-weight: 600;
+      line-height: 16px;
+      text-align: center;
+    }
+
+    .history-btn__badge--visible {
+      display: block;
+    }
+
+    .diff-panel {
+      display: none;
+      position: absolute;
+      bottom: calc(100% + 12px);
+      left: 24px;
+      right: 24px;
+      background: #FFFFFF;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px 24px;
+      max-height: 320px;
+      overflow-y: auto;
+      box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.08);
+      z-index: 50;
+    }
+
+    .diff-panel--visible {
+      display: block;
+      animation: diffSlideUp 200ms ease;
+    }
+
+    @keyframes diffSlideUp {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .diff-panel__header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+
+    .diff-panel__title {
+      font-family: var(--font-ui);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .diff-panel__header-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .diff-panel__header-actions .controls__btn {
+      padding: 6px 12px;
+      height: 30px;
+      font-size: 13px;
+    }
+
+    .diff-panel__header-actions .controls__btn--primary {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+
+    .diff-panel__header-actions .controls__btn--primary:hover {
+      background: var(--accent-dim);
+      border-color: var(--accent-dim);
+    }
+
+    .controls__btn--loading {
+      position: relative;
+      padding-left: 32px;
+    }
+
+    .controls__btn--loading::before {
+      content: '';
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      width: 12px;
+      height: 12px;
+      margin-top: -6px;
+      border: 2px solid var(--accent);
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: btnSpinner 0.6s linear infinite;
+    }
+
+    @keyframes btnSpinner {
+      to { transform: rotate(360deg); }
+    }
+
+    @media (max-width: 768px) {
+      .topbar__inner {
+        width: 100%;
+        padding: 0 12px;
+      }
+
+      .content-container {
+        width: 100%;
+        padding: 0 12px;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .topbar {
+        padding: 0 16px;
+      }
+
+      .topbar__download {
+        font-size: 11px;
+        padding: 5px 10px;
+      }
+
+      .langbar {
+        padding: 0 12px;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+      }
+
+      .langbar::-webkit-scrollbar {
+        display: none;
+      }
+
+      .transcript {
+        margin: 12px 0 8px;
+        padding: 16px;
+        font-size: 15px;
+      }
+
+      .controls {
+        gap: 8px;
+        padding: 0 12px;
+      }
+
+      .controls__btn {
+        padding: 9px 10px;
+        font-size: 12px;
+      }
+
+      .controls__btn--mic {
+        width: 48px;
+        height: 48px;
+        font-size: 20px;
+      }
+
+      .controls__btn--icon {
+        padding: 9px 10px;
+      }
+
+      .stats {
+        padding: 0 0 8px;
+        gap: 12px;
+        font-size: 11px;
+      }
+
+      .history-panel {
+        width: 100%;
+        height: 60vh;
+        top: auto;
+        bottom: 0;
+        border-left: none;
+        border-top: 1px solid var(--border);
+        transform: translateY(100%);
+        transition: transform 200ms ease;
+        border-radius: 16px 16px 0 0;
+      }
+
+      .history-panel--visible {
+        transform: translateY(0);
+      }
+
+      .history-overlay {
+        backdrop-filter: blur(2px);
+      }
+
+      .diff-panel {
+        left: 12px;
+        right: 12px;
+        padding: 16px;
+      }
+
+      .toast-container {
+        right: 12px;
+        bottom: 88px;
+      }
+
+      .toast {
+        max-width: calc(100vw - 24px);
+        font-size: 12px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="browser-banner" id="browserBanner">
+    WhisperFlow needs Chrome or Edge for voice input. You can still paste text and use grammar fix.
+  </div>
+
+  <header class="topbar">
+    <div class="topbar__inner">
+      <div class="topbar__wordmark">Whisper<span>Flow</span><span class="recording-indicator" id="recordingIndicator"></span></div>
+      <a class="topbar__download" href="dist/WhisperFlow.exe" download>Download Desktop App</a>
+    </div>
+  </header>
+
+  <div class="langbar">
+    <button class="langbar__chip langbar__chip--active" type="button" data-lang="en-US">EN</button>
+    <button class="langbar__chip" type="button" data-lang="hi-IN">HI</button>
+    <button class="langbar__chip" type="button" data-lang="ne-NP">NP</button>
+  </div>
+
+  <div class="main">
+    <div class="content-container">
+      <section class="transcript" id="transcript" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Transcript">
+        <span class="transcript__interim" id="interim"></span>
+      </section>
+
+      <div class="stats">
+        <span class="stats__item" id="wordCount">0 words</span>
+        <span class="stats__separator">&middot;</span>
+        <span class="stats__item" id="charCount">0 characters</span>
+        <span class="stats__separator">&middot;</span>
+        <span class="stats__item" id="readTime">~0 min read</span>
+      </div>
+    </div>
+
+    <footer class="controls">
+      <button class="controls__btn controls__btn--primary" id="fixGrammarBtn" type="button" disabled>Fix Grammar</button>
+      <button class="controls__btn controls__btn--primary" id="copyBtn" type="button">Copy</button>
+      <button class="controls__btn controls__btn--primary" id="exportBtn" type="button">Export .txt</button>
+
+      <button class="controls__btn--mic" id="micBtn" type="button" aria-label="Start recording">
+        <span>🎙</span>
+      </button>
+
+      <button class="controls__btn controls__btn--icon" id="historyBtn" type="button" aria-label="Session history">
+        <span>🕐</span>
+        <span class="history-btn__badge" id="historyBadge"></span>
+      </button>
+
+      <div class="diff-panel" id="diffPanel">
+        <div class="diff-panel__header">
+          <span class="diff-panel__title">Grammar Fix Preview</span>
+          <div class="diff-panel__header-actions">
+            <button class="controls__btn controls__btn--secondary" id="diffRevert" type="button">Revert</button>
+            <button class="controls__btn controls__btn--primary" id="diffAccept" type="button">Accept Changes</button>
+          </div>
+        </div>
+        <div class="diff-panel__body" id="diffBody"></div>
+      </div>
+    </footer>
+  </div>
+
+  <div class="history-overlay" id="historyOverlay"></div>
+  <div class="history-panel" id="historyPanel">
+    <div class="history-panel__header">
+      <span class="history-panel__title">Recent Sessions</span>
+      <button class="history-panel__close" id="historyClose" type="button" aria-label="Close history">&times;</button>
+    </div>
+    <div class="history-panel__list" id="historyList">
+      <div class="history-panel__empty">No sessions yet. Start recording to build history.</div>
+    </div>
+  </div>
+
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script>
+    // DOM refs
+    var transcriptDiv = document.getElementById('transcript');
+    var micBtn = document.getElementById('micBtn');
+    var fixGrammarBtn = document.getElementById('fixGrammarBtn');
+    var copyBtn = document.getElementById('copyBtn');
+    var exportBtn = document.getElementById('exportBtn');
+    var historyBtn = document.getElementById('historyBtn');
+    var browserBanner = document.getElementById('browserBanner');
+    var wordCountEl = document.getElementById('wordCount');
+    var charCountEl = document.getElementById('charCount');
+    var readTimeEl = document.getElementById('readTime');
+    var toastContainer = document.getElementById('toastContainer');
+    var diffPanel = document.getElementById('diffPanel');
+    var diffBody = document.getElementById('diffBody');
+    var diffAccept = document.getElementById('diffAccept');
+    var diffRevert = document.getElementById('diffRevert');
+    var historyOverlay = document.getElementById('historyOverlay');
+    var historyPanel = document.getElementById('historyPanel');
+    var historyClose = document.getElementById('historyClose');
+    var historyList = document.getElementById('historyList');
+    var historyBadge = document.getElementById('historyBadge');
+
+    // State
+    var isRecording = false;
+    var finalTranscript = '';
+    var rawTranscriptBeforeFix = null;
+    var recognition = null;
+    var silenceTimer = null;
+    var autoFixTimer = null;
+    var AUTO_FIX_DELAY = 4000;
+    var copyBtnTimer = null;
+    var groqApiKey = '';
+    var currentLangGroup = 'en';
+    var isFixing = false;
+
+    var LANG_GROUPS = {
+      'en-US': 'en',
+      'hi-IN': 'hi',
+      'ne-NP': 'ne'
+    };
+
+    var LANG_NAMES = {
+      'en-US': 'English',
+      'hi-IN': 'Hindi',
+      'ne-NP': 'Nepali'
+    };
+
+    // Speech recognition
+    var SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    if (SpeechRecognitionAPI) {
+      recognition = new SpeechRecognitionAPI();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = 'en-US';
+
+      recognition.onresult = function(event) {
+        var interimText = '';
+
+        for (var i = event.resultIndex; i < event.results.length; i++) {
+          var result = event.results[i];
+          if (result.isFinal) {
+            finalTranscript += result[0].transcript + ' ';
+          } else {
+            interimText += result[0].transcript;
+          }
+        }
+
+        clearTimeout(silenceTimer);
+        if (isRecording) {
+          silenceTimer = setTimeout(function() {
+            finalTranscript += '\n';
+            renderTranscript(finalTranscript, '');
+          }, 1500);
+        }
+
+        renderTranscript(finalTranscript, interimText);
+      };
+
+      recognition.onend = function() {
+        if (isRecording) {
+          try {
+            recognition.start();
+          } catch (e) {}
+        }
+      };
+
+      recognition.onerror = function(event) {
+        switch (event.error) {
+          case 'not-allowed':
+            isRecording = false;
+            micBtn.classList.remove('controls__btn--recording');
+            micBtn.setAttribute('aria-label', 'Start recording');
+            showToast('Microphone access denied. Allow mic in browser settings.', 'error');
+            updateButtonStates();
+            break;
+          case 'no-speech':
+            if (isRecording) {
+              try { recognition.start(); } catch (e) {}
+            }
+            break;
+          case 'network':
+            showToast('Network error. Check your connection.', 'error');
+            break;
+          default:
+            showToast('Speech error: ' + event.error, 'warning');
+        }
+      };
+    } else {
+      browserBanner.classList.add('browser-banner--visible');
+      micBtn.disabled = true;
+      micBtn.title = 'Voice input not supported in this browser';
+    }
+
+    // API key — auto-loaded from sessionStorage or groq.key
+
+    function loadApiKey() {
+      var stored = sessionStorage.getItem('wf_groq_key');
+      if (stored) {
+        groqApiKey = stored;
+        return;
+      }
+
+      fetch('groq.key')
+        .then(function(res) { return res.text(); })
+        .then(function(text) {
+          var cleaned = text.replace(/^\uFEFF/, '').trim();
+          var lines = cleaned.split('\n');
+          for (var i = 0; i < lines.length; i++) {
+            var line = lines[i].trim();
+            if (line.indexOf('GROQ_API_KEY=') === 0) {
+              groqApiKey = line.slice('GROQ_API_KEY='.length).trim().replace(/^["']|["']$/g, '');
+              if (groqApiKey) {
+                sessionStorage.setItem('wf_groq_key', groqApiKey);
+              }
+              break;
+            }
+          }
+        })
+        .catch(function() {});
+    }
+
+    // UI helpers
+
+    function renderTranscript(finalText, interimText) {
+      var escapedFinal = finalText
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/\n/g, '<br>');
+
+      var escapedInterim = interimText
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+
+      transcriptDiv.innerHTML = escapedFinal + '<span class="transcript__interim" id="interim">' + escapedInterim + '</span>';
+
+      var isEmpty = !finalText && !interimText;
+      transcriptDiv.classList.toggle('transcript--empty', isEmpty);
+
+      transcriptDiv.scrollTop = transcriptDiv.scrollHeight;
+      updateStats();
+      updateButtonStates();
+      resetAutoFixTimer();
+    }
+
+    function updateStats() {
+      var words = finalTranscript.trim() ? finalTranscript.trim().split(/\s+/).length : 0;
+      var chars = finalTranscript.length;
+      var readTime = Math.ceil(words / 200) || 0;
+
+      wordCountEl.textContent = words + ' words';
+      charCountEl.textContent = chars + ' characters';
+      readTimeEl.textContent = '~' + readTime + ' min read';
+    }
+
+    function updateButtonStates() {
+      var hasContent = finalTranscript.trim().length > 0;
+      fixGrammarBtn.disabled = isRecording || !hasContent;
+      copyBtn.disabled = isRecording || !hasContent;
+      exportBtn.disabled = isRecording || !hasContent;
+    }
+
+    function resetAutoFixTimer() {
+      clearTimeout(autoFixTimer);
+      if (finalTranscript.trim() && !isFixing) {
+        autoFixTimer = setTimeout(function() {
+          if (finalTranscript.trim() && !isFixing) {
+            fixGrammar();
+          }
+        }, AUTO_FIX_DELAY);
+      }
+    }
+
+    function showToast(message, type, action) {
+      var toast = document.createElement('div');
+      toast.className = 'toast toast--' + type;
+
+      var msgSpan = document.createElement('span');
+      msgSpan.textContent = message;
+      toast.appendChild(msgSpan);
+
+      if (action) {
+        var actionBtn = document.createElement('button');
+        actionBtn.textContent = action.label;
+        actionBtn.style.cssText = 'margin-left:8px;padding:4px 10px;border-radius:4px;border:1px solid currentColor;background:transparent;color:inherit;font:inherit;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap';
+        actionBtn.addEventListener('click', function() {
+          action.callback();
+          toast.classList.add('toast--dismissing');
+          setTimeout(function() { if (toast.parentNode) toast.parentNode.removeChild(toast); }, 250);
+        });
+        toast.appendChild(actionBtn);
+      }
+
+      toastContainer.appendChild(toast);
+
+      setTimeout(function() {
+        toast.classList.add('toast--dismissing');
+        setTimeout(function() {
+          if (toast.parentNode) toast.parentNode.removeChild(toast);
+        }, 250);
+      }, 3000);
+    }
+
+    function setButtonsLoading(loading) {
+      var btns = [fixGrammarBtn, copyBtn, exportBtn, micBtn, historyBtn];
+      for (var i = 0; i < btns.length; i++) {
+        btns[i].disabled = loading;
+      }
+      if (loading) {
+        fixGrammarBtn.textContent = 'Fixing...';
+        fixGrammarBtn.classList.add('controls__btn--loading');
+      } else {
+        fixGrammarBtn.textContent = 'Fix Grammar';
+        fixGrammarBtn.classList.remove('controls__btn--loading');
+      }
+    }
+
+    function fixGrammar() {
+      if (isFixing) return;
+      clearTimeout(autoFixTimer);
+      var text = transcriptDiv.innerText.trim();
+      if (!text) {
+        showToast('Nothing to fix — transcript is empty.', 'warning');
+        return;
+      }
+
+      if (!groqApiKey) {
+        showToast('GROQ_API_KEY not found in .env file.', 'error');
+        return;
+      }
+
+      isFixing = true;
+      rawTranscriptBeforeFix = text;
+      setButtonsLoading(true);
+
+      fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + groqApiKey
+        },
+        body: JSON.stringify({
+          model: 'llama-3.3-70b-versatile',
+          temperature: 0,
+          messages: [
+            {
+              role: 'system',
+              content: 'You are a grammar and punctuation correction assistant. Your task is to:\n1. Fix grammar, spelling, and punctuation errors in the provided transcript\n2. Add proper capitalization and line breaks where appropriate\n3. Preserve the original meaning and wording as much as possible\n4. Do NOT add, remove, or rephrase content beyond what is needed for correction\n5. Do NOT add commentary, notes, or explanations — output only the corrected text\n6. If the input appears to be in a language other than English and you can correct it, do so; otherwise return it as-is\n\nReturn ONLY the corrected transcript text, nothing else.'
+            },
+            { role: 'user', content: text }
+          ]
+        })
+      })
+      .then(function(response) {
+        if (!response.ok) {
+          return response.json().then(function(err) {
+            var msg = (err.error && err.error.message) || 'API error: ' + response.status;
+            throw { code: response.status, message: msg };
+          });
+        }
+        return response.json();
+      })
+      .then(function(data) {
+        var correctedText = data.choices[0].message.content;
+        finalTranscript = correctedText;
+        transcriptDiv.innerHTML = correctedText.replace(/</g, '&lt;').replace(/\n/g, '<br>') + '<span class="transcript__interim" id="interim"></span>';
+        transcriptDiv.classList.remove('transcript--empty');
+        diffPanel.classList.remove('diff-panel--visible');
+        updateStats();
+        updateButtonStates();
+        showToast('Grammar fix applied.', 'success');
+        saveToHistory(correctedText);
+        isFixing = false;
+        setButtonsLoading(false);
+      })
+      .catch(function(error) {
+        isFixing = false;
+        setButtonsLoading(false);
+        if (error.code === 401 || error.code === 403) {
+          sessionStorage.removeItem('wf_groq_key');
+          groqApiKey = '';
+          showToast('Invalid Groq API key.', 'error', { label: 'Enter Key', callback: showApiKeyInput });
+        } else if (error.code === 429) {
+          showToast('Rate limit hit. Wait a moment and try again.', 'warning');
+        } else if (error.code) {
+          showToast(error.message || ('API error: ' + error.code), 'error');
+        } else {
+          showToast('Connection failed. Check your internet.', 'error');
+        }
+      });
+    }
+
+    function translateText(targetLang, targetLangName) {
+      if (!finalTranscript.trim()) return;
+      if (!groqApiKey) { showApiKeyInput(); return; }
+
+      setButtonsLoading(true);
+
+      fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + groqApiKey
+        },
+        body: JSON.stringify({
+          model: 'llama-3.3-70b-versatile',
+          temperature: 0,
+          messages: [
+            {
+              role: 'system',
+              content: 'Translate the following text to ' + targetLangName + '. Preserve the original meaning. Return ONLY the translated text, nothing else.'
+            },
+            { role: 'user', content: finalTranscript }
+          ]
+        })
+      })
+      .then(function(response) {
+        if (!response.ok) {
+          return response.json().then(function(err) {
+            throw { code: response.status, message: (err.error && err.error.message) || 'Translation failed' };
+          });
+        }
+        return response.json();
+      })
+      .then(function(data) {
+        var translated = data.choices[0].message.content;
+        finalTranscript = translated;
+        transcriptDiv.innerHTML = translated.replace(/</g, '&lt;').replace(/\n/g, '<br>') + '<span class="transcript__interim" id="interim"></span>';
+        transcriptDiv.classList.remove('transcript--empty');
+        updateStats();
+        updateButtonStates();
+        setButtonsLoading(false);
+        showToast('Translated to ' + targetLangName, 'success');
+      })
+      .catch(function(error) {
+        setButtonsLoading(false);
+        showToast(error.message || 'Translation failed', 'error');
+      });
+    }
+
+    function computeDiff(original, corrected) {
+      var a = original.split(/\s+/);
+      var b = corrected.split(/\s+/);
+      var m = a.length, n = b.length;
+      var dp = [];
+
+      for (var i = 0; i <= m; i++) {
+        dp[i] = [];
+        for (var j = 0; j <= n; j++) {
+          dp[i][j] = 0;
+        }
+      }
+
+      for (var i = 1; i <= m; i++) {
+        for (var j = 1; j <= n; j++) {
+          if (a[i - 1] === b[j - 1]) {
+            dp[i][j] = dp[i - 1][j - 1] + 1;
+          } else {
+            dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
+          }
+        }
+      }
+
+      var result = [];
+      var i = m, j = n;
+      while (i > 0 || j > 0) {
+        if (i > 0 && j > 0 && a[i - 1] === b[j - 1]) {
+          result.unshift({ type: 'same', text: a[i - 1] });
+          i--;
+          j--;
+        } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
+          var token = b[j - 1];
+          var isPunct = /^[^\w\s]+$/.test(token);
+          result.unshift({ type: isPunct ? 'punct' : 'changed', text: token });
+          j--;
+        } else {
+          result.unshift({ type: 'removed', text: a[i - 1] });
+          i--;
+        }
+      }
+
+      return result;
+    }
+
+    function showDiffView(original, corrected) {
+      var diffOps = computeDiff(original, corrected);
+      var html = '';
+
+      for (var i = 0; i < diffOps.length; i++) {
+        var op = diffOps[i];
+        switch (op.type) {
+          case 'same':
+            html += '<span>' + op.text.replace(/</g, '&lt;') + ' </span>';
+            break;
+          case 'changed':
+            html += '<span class="diff-changed">' + op.text.replace(/</g, '&lt;') + ' </span>';
+            break;
+          case 'removed':
+            html += '<span class="diff-removed">' + op.text.replace(/</g, '&lt;') + ' </span>';
+            break;
+          case 'punct':
+            html += '<span class="diff-punct">' + op.text.replace(/</g, '&lt;') + '</span>';
+            break;
+        }
+      }
+
+      diffBody.innerHTML = html;
+      diffPanel.classList.add('diff-panel--visible');
+      diffPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function acceptChanges() {
+      var correctedText = diffBody.innerText;
+      finalTranscript = correctedText;
+      transcriptDiv.innerHTML = correctedText.replace(/</g, '&lt;').replace(/\n/g, '<br>') + '<span class="transcript__interim" id="interim"></span>';
+      diffPanel.classList.remove('diff-panel--visible');
+      updateStats();
+      updateButtonStates();
+      showToast('Grammar fix applied.', 'success');
+      saveToHistory(correctedText);
+    }
+
+    function revertChanges() {
+      diffPanel.classList.remove('diff-panel--visible');
+      showToast('Reverted to original.', 'warning');
+    }
+
+    function getHistory() {
+      try {
+        var data = sessionStorage.getItem('wf_history');
+        return data ? JSON.parse(data) : [];
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function saveToHistory(text) {
+      var history = getHistory();
+      var entry = {
+        id: Date.now(),
+        text: text,
+        wordCount: text.trim() ? text.trim().split(/\s+/).length : 0,
+        savedAt: new Date().toISOString()
+      };
+      history.unshift(entry);
+      if (history.length > 5) {
+        history = history.slice(0, 5);
+      }
+      sessionStorage.setItem('wf_history', JSON.stringify(history));
+      loadHistory();
+      if (historyPanel.classList.contains('history-panel--visible')) {
+        renderHistory();
+      }
+    }
+
+    function loadHistory() {
+      var history = getHistory();
+      if (history.length > 0) {
+        historyBadge.textContent = history.length;
+        historyBadge.classList.add('history-btn__badge--visible');
+      } else {
+        historyBadge.classList.remove('history-btn__badge--visible');
+      }
+    }
+
+    function renderHistory() {
+      var history = getHistory();
+      historyList.innerHTML = '';
+
+      if (history.length === 0) {
+        historyList.innerHTML = '<div class="history-panel__empty">No sessions yet. Recordings are saved here automatically.</div>';
+        return;
+      }
+
+      for (var i = 0; i < history.length; i++) {
+        var entry = history[i];
+        var preview = entry.text.substring(0, 80);
+        if (entry.text.length > 80) preview += '...';
+        var date = new Date(entry.savedAt);
+        var formattedDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+        var item = document.createElement('div');
+        item.className = 'history-item';
+        item.innerHTML = '<div class="history-item__preview">' + preview.replace(/</g, '&lt;') + '</div><div class="history-item__meta"><span class="history-item__info">' + entry.wordCount + ' words · ' + formattedDate + '</span><button class="history-item__restore" type="button">Restore</button></div>';
+
+        var restoreBtn = item.querySelector('.history-item__restore');
+        restoreBtn.addEventListener('click', function(text) {
+          return function() {
+            finalTranscript = text;
+            transcriptDiv.innerHTML = text.replace(/</g, '&lt;').replace(/\n/g, '<br>') + '<span class="transcript__interim" id="interim"></span>';
+            transcriptDiv.classList.remove('transcript--empty');
+            historyPanel.classList.remove('history-panel--visible');
+            historyOverlay.classList.remove('history-overlay--visible');
+            updateStats();
+            updateButtonStates();
+            showToast('Session restored.', 'success');
+          };
+        }(entry.text));
+
+        historyList.appendChild(item);
+      }
+    }
+
+    function toggleHistory() {
+      var isOpen = historyPanel.classList.contains('history-panel--visible');
+      if (isOpen) {
+        historyPanel.classList.remove('history-panel--visible');
+        historyOverlay.classList.remove('history-overlay--visible');
+      } else {
+        renderHistory();
+        historyPanel.classList.add('history-panel--visible');
+        historyOverlay.classList.add('history-overlay--visible');
+      }
+    }
+
+    function copyTranscript() {
+      var text = transcriptDiv.innerText.trim();
+      if (!text) {
+        showToast('Nothing to copy.', 'warning');
+        return;
+      }
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function() {
+          showCopyFeedback();
+        }).catch(function() {
+          fallbackCopy(text);
+        });
+      } else {
+        fallbackCopy(text);
+      }
+    }
+
+    function showCopyFeedback() {
+      copyBtn.textContent = '\u2713 Copied';
+      copyBtn.disabled = true;
+      if (copyBtnTimer) clearTimeout(copyBtnTimer);
+      copyBtnTimer = setTimeout(function() {
+        copyBtn.textContent = 'Copy';
+        copyBtn.disabled = false;
+        updateButtonStates();
+      }, 2000);
+    }
+
+    function fallbackCopy(text) {
+      var textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      try {
+        document.execCommand('copy');
+        showCopyFeedback();
+      } catch (e) {
+        showToast('Failed to copy. Select text manually.', 'error');
+      }
+      document.body.removeChild(textarea);
+    }
+
+    function exportTxt() {
+      var text = transcriptDiv.innerText.trim();
+      if (!text) {
+        showToast('Nothing to export.', 'warning');
+        return;
+      }
+
+      var now = new Date();
+      var pad = function(n) { return n < 10 ? '0' + n : n; };
+      var filename = 'whisperflow-' + now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate()) + '-' + pad(now.getHours()) + pad(now.getMinutes()) + '.txt';
+
+      var blob = new Blob([text], { type: 'text/plain' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      showToast('Exported as .txt', 'success');
+    }
+
+    function startRecording() {
+      if (!recognition) return;
+
+      isRecording = true;
+      micBtn.classList.add('controls__btn--recording');
+      micBtn.setAttribute('aria-label', 'Stop recording');
+
+      try {
+        recognition.start();
+      } catch (e) {}
+
+      updateButtonStates();
+    }
+
+    function stopRecording() {
+      isRecording = false;
+      micBtn.classList.remove('controls__btn--recording');
+      micBtn.setAttribute('aria-label', 'Start recording');
+
+      clearTimeout(silenceTimer);
+
+      try {
+        recognition.stop();
+      } catch (e) {}
+
+      updateButtonStates();
+
+      if (finalTranscript.trim()) {
+        saveToHistory(finalTranscript);
+        showToast('Session saved to history.', 'success');
+      }
+    }
+
+    // Event listeners
+
+    micBtn.addEventListener('click', function() {
+      if (isRecording) {
+        stopRecording();
+      } else {
+        startRecording();
+      }
+    });
+
+    transcriptDiv.addEventListener('input', function() {
+      var clone = transcriptDiv.cloneNode(true);
+      var span = clone.querySelector('#interim');
+      if (span) {
+        span.remove();
+      }
+      finalTranscript = clone.innerText;
+      var isEmpty = !finalTranscript.trim();
+      transcriptDiv.classList.toggle('transcript--empty', isEmpty);
+      updateStats();
+      updateButtonStates();
+      resetAutoFixTimer();
+    });
+
+    fixGrammarBtn.addEventListener('click', function() {
+      fixGrammar();
+    });
+
+    diffAccept.addEventListener('click', function() {
+      acceptChanges();
+    });
+
+    diffRevert.addEventListener('click', function() {
+      revertChanges();
+    });
+
+    copyBtn.addEventListener('click', function() {
+      copyTranscript();
+    });
+
+    exportBtn.addEventListener('click', function() {
+      exportTxt();
+    });
+
+    historyBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      toggleHistory();
+    });
+
+    historyClose.addEventListener('click', function() {
+      historyPanel.classList.remove('history-panel--visible');
+      historyOverlay.classList.remove('history-overlay--visible');
+    });
+
+    historyOverlay.addEventListener('click', function() {
+      historyPanel.classList.remove('history-panel--visible');
+      historyOverlay.classList.remove('history-overlay--visible');
+    });
+
+    var langChips = document.querySelectorAll('.langbar__chip');
+    for (var i = 0; i < langChips.length; i++) {
+      langChips[i].addEventListener('click', function() {
+        var newLang = this.getAttribute('data-lang');
+        var newGroup = LANG_GROUPS[newLang];
+        if (newGroup === currentLangGroup) return;
+
+        for (var j = 0; j < langChips.length; j++) {
+          langChips[j].classList.remove('langbar__chip--active');
+        }
+        this.classList.add('langbar__chip--active');
+
+        if (recognition) {
+          recognition.lang = newLang;
+          if (isRecording) {
+            try { recognition.stop(); } catch (e) {}
+          }
+        }
+
+        if (finalTranscript.trim() && LANG_NAMES[newLang]) {
+          translateText(newLang, LANG_NAMES[newLang]);
+        }
+
+        currentLangGroup = newGroup;
+      });
+    }
+
+    window.addEventListener('beforeunload', function() {
+      if (recognition) {
+        recognition.abort();
+      }
+    });
+
+    // Init
+    transcriptDiv.classList.add('transcript--empty');
+    loadApiKey();
+    loadHistory();
+  </script>
+</body>
+</html>
