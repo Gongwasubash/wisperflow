@@ -906,14 +906,14 @@
           .catch(function() {});
       } else {
         var script = document.createElement('script');
-        script.src = '/api/env.js';
+        script.src = '/api-key.js';
         script.onload = function() {
           if (window.WF_GROQ_API_KEY) {
             groqApiKey = window.WF_GROQ_API_KEY;
             sessionStorage.setItem('wf_groq_key', groqApiKey);
-            console.log('API key loaded from Netlify');
+            console.log('API key loaded from build');
           } else {
-            console.warn('Netlify returned empty API key');
+            console.warn('No API key in build - check GROQ_API_KEY env var');
           }
         };
         script.onerror = function(e) {

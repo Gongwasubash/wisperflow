@@ -1,6 +1,6 @@
 [build]
-  publish = "/"
-  command = ""
+  publish = "."
+  command = "node scripts/inject-env.js"
 
 [functions]
   directory = "netlify/functions"
