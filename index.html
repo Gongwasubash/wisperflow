@@ -911,9 +911,14 @@
           if (window.WF_GROQ_API_KEY) {
             groqApiKey = window.WF_GROQ_API_KEY;
             sessionStorage.setItem('wf_groq_key', groqApiKey);
+            console.log('API key loaded from Netlify function');
+          } else {
+            console.warn('Netlify function returned empty API key');
           }
         };
-        script.onerror = function() {};
+        script.onerror = function(e) {
+          console.error('Failed to load API key from Netlify function:', e);
+        };
         document.head.appendChild(script);
       }
     }
@@ -1534,8 +1539,8 @@
       console.log('WhisperFlow loaded');
       console.log('API Key loaded:', !!groqApiKey);
       console.log('Speech Recognition supported:', !!recognition);
-      if (!groqApiKey) {
-        console.warn('⚠️ No API key detected. Click settings icon (⚙️) to add your Groq API key.');
+      if (!groqApiKey && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+        console.warn('No API key in production - check Netlify environment variable GROQ_API_KEY');
       }
     });
   </script>
