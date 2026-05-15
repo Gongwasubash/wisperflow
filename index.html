@@ -240,6 +240,7 @@
       flex-direction: column;
       min-height: 0;
       box-sizing: border-box;
+      padding-bottom: 20px;
     }
 
     .main {
@@ -479,27 +480,6 @@
       color: var(--text-primary);
     }
 
-    .history-btn__badge {
-      display: none;
-      position: absolute;
-      top: -4px;
-      right: -4px;
-      min-width: 16px;
-      height: 16px;
-      padding: 0 4px;
-      border-radius: 8px;
-      background: var(--accent);
-      color: #fff;
-      font-size: 10px;
-      font-weight: 600;
-      line-height: 16px;
-      text-align: center;
-    }
-
-    .history-btn__badge--visible {
-      display: block;
-    }
-
     .diff-panel {
       display: none;
       position: absolute;
@@ -708,7 +688,7 @@
         backdrop-filter: blur(2px);
       }
 
-      .diff-panel {
+.diff-panel {
         left: 12px;
         right: 12px;
         padding: 16px;
@@ -771,10 +751,7 @@
         <span>🎙</span>
       </button>
 
-      <button class="controls__btn controls__btn--icon" id="historyBtn" type="button" aria-label="Session history">
-        <span>🕐</span>
-        <span class="history-btn__badge" id="historyBadge"></span>
-      </button>
+      
 
       <div class="diff-panel" id="diffPanel">
         <div class="diff-panel__header">
@@ -789,17 +766,6 @@
     </footer>
   </div>
 
-  <div class="history-overlay" id="historyOverlay"></div>
-  <div class="history-panel" id="historyPanel">
-    <div class="history-panel__header">
-      <span class="history-panel__title">Recent Sessions</span>
-      <button class="history-panel__close" id="historyClose" type="button" aria-label="Close history">&times;</button>
-    </div>
-    <div class="history-panel__list" id="historyList">
-      <div class="history-panel__empty">No sessions yet. Start recording to build history.</div>
-    </div>
-  </div>
-
   <div class="toast-container" id="toastContainer"></div>
 
   <script>
@@ -809,7 +775,6 @@
     var fixGrammarBtn = document.getElementById('fixGrammarBtn');
     var copyBtn = document.getElementById('copyBtn');
     var exportBtn = document.getElementById('exportBtn');
-    var historyBtn = document.getElementById('historyBtn');
     var browserBanner = document.getElementById('browserBanner');
     var wordCountEl = document.getElementById('wordCount');
     var charCountEl = document.getElementById('charCount');
@@ -819,11 +784,6 @@
     var diffBody = document.getElementById('diffBody');
     var diffAccept = document.getElementById('diffAccept');
     var diffRevert = document.getElementById('diffRevert');
-    var historyOverlay = document.getElementById('historyOverlay');
-    var historyPanel = document.getElementById('historyPanel');
-    var historyClose = document.getElementById('historyClose');
-    var historyList = document.getElementById('historyList');
-    var historyBadge = document.getElementById('historyBadge');
 
     // State
     var isRecording = false;
@@ -1054,7 +1014,7 @@
     }
 
     function setButtonsLoading(loading) {
-      var btns = [fixGrammarBtn, copyBtn, exportBtn, micBtn, historyBtn];
+      var btns = [fixGrammarBtn, copyBtn, exportBtn, micBtn];
       for (var i = 0; i < btns.length; i++) {
         btns[i].disabled = loading;
       }
@@ -1121,7 +1081,6 @@
         updateStats();
         updateButtonStates();
         showToast('Grammar fix applied.', 'success');
-        saveToHistory(correctedText);
         isFixing = false;
         setButtonsLoading(false);
       })
@@ -1272,100 +1231,11 @@
       updateStats();
       updateButtonStates();
       showToast('Grammar fix applied.', 'success');
-      saveToHistory(correctedText);
     }
 
     function revertChanges() {
       diffPanel.classList.remove('diff-panel--visible');
       showToast('Reverted to original.', 'warning');
-    }
-
-    function getHistory() {
-      try {
-        var data = sessionStorage.getItem('wf_history');
-        return data ? JSON.parse(data) : [];
-      } catch (e) {
-        return [];
-      }
-    }
-
-    function saveToHistory(text) {
-      var history = getHistory();
-      var entry = {
-        id: Date.now(),
-        text: text,
-        wordCount: text.trim() ? text.trim().split(/\s+/).length : 0,
-        savedAt: new Date().toISOString()
-      };
-      history.unshift(entry);
-      if (history.length > 5) {
-        history = history.slice(0, 5);
-      }
-      sessionStorage.setItem('wf_history', JSON.stringify(history));
-      loadHistory();
-      if (historyPanel.classList.contains('history-panel--visible')) {
-        renderHistory();
-      }
-    }
-
-    function loadHistory() {
-      var history = getHistory();
-      if (history.length > 0) {
-        historyBadge.textContent = history.length;
-        historyBadge.classList.add('history-btn__badge--visible');
-      } else {
-        historyBadge.classList.remove('history-btn__badge--visible');
-      }
-    }
-
-    function renderHistory() {
-      var history = getHistory();
-      historyList.innerHTML = '';
-
-      if (history.length === 0) {
-        historyList.innerHTML = '<div class="history-panel__empty">No sessions yet. Recordings are saved here automatically.</div>';
-        return;
-      }
-
-      for (var i = 0; i < history.length; i++) {
-        var entry = history[i];
-        var preview = entry.text.substring(0, 80);
-        if (entry.text.length > 80) preview += '...';
-        var date = new Date(entry.savedAt);
-        var formattedDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-        var item = document.createElement('div');
-        item.className = 'history-item';
-        item.innerHTML = '<div class="history-item__preview">' + preview.replace(/</g, '&lt;') + '</div><div class="history-item__meta"><span class="history-item__info">' + entry.wordCount + ' words · ' + formattedDate + '</span><button class="history-item__restore" type="button">Restore</button></div>';
-
-        var restoreBtn = item.querySelector('.history-item__restore');
-        restoreBtn.addEventListener('click', function(text) {
-          return function() {
-            finalTranscript = text;
-            transcriptDiv.innerHTML = text.replace(/</g, '&lt;').replace(/\n/g, '<br>') + '<span class="transcript__interim" id="interim"></span>';
-            transcriptDiv.classList.remove('transcript--empty');
-            historyPanel.classList.remove('history-panel--visible');
-            historyOverlay.classList.remove('history-overlay--visible');
-            updateStats();
-            updateButtonStates();
-            showToast('Session restored.', 'success');
-          };
-        }(entry.text));
-
-        historyList.appendChild(item);
-      }
-    }
-
-    function toggleHistory() {
-      var isOpen = historyPanel.classList.contains('history-panel--visible');
-      if (isOpen) {
-        historyPanel.classList.remove('history-panel--visible');
-        historyOverlay.classList.remove('history-overlay--visible');
-      } else {
-        renderHistory();
-        historyPanel.classList.add('history-panel--visible');
-        historyOverlay.classList.add('history-overlay--visible');
-      }
     }
 
     function copyTranscript() {
@@ -1464,8 +1334,7 @@
       updateButtonStates();
 
       if (finalTranscript.trim()) {
-        saveToHistory(finalTranscript);
-        showToast('Session saved to history.', 'success');
+        showToast('Recording stopped.', 'success');
       }
     }
 
@@ -1511,21 +1380,6 @@
 
     exportBtn.addEventListener('click', function() {
       exportTxt();
-    });
-
-    historyBtn.addEventListener('click', function(e) {
-      e.stopPropagation();
-      toggleHistory();
-    });
-
-    historyClose.addEventListener('click', function() {
-      historyPanel.classList.remove('history-panel--visible');
-      historyOverlay.classList.remove('history-overlay--visible');
-    });
-
-    historyOverlay.addEventListener('click', function() {
-      historyPanel.classList.remove('history-panel--visible');
-      historyOverlay.classList.remove('history-overlay--visible');
     });
 
     var langChips = document.querySelectorAll('.langbar__chip');
@@ -1579,7 +1433,6 @@
     // Init
     transcriptDiv.classList.add('transcript--empty');
     loadApiKey();
-    loadHistory();
 
     window.addEventListener('load', function() {
       console.log('WhisperFlow loaded');
