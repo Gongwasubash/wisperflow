@@ -6,3 +6,4 @@ dist/
 dictation_app/
 groq.key
 api-key.js
+.env
