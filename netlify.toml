@@ -1,0 +1,11 @@
+[build]
+  publish = "/"
+  command = ""
+
+[[redirects]]
+  from = "/.netlify/functions/env.js"
+  to = "/.netlify/functions/env.js"
+  status = 200
+
+[functions]
+  directory = "netlify/functions"
