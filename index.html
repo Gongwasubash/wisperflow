@@ -1491,7 +1491,7 @@
       langChips[i].addEventListener('click', function() {
         var newLang = this.getAttribute('data-lang');
         var newGroup = LANG_GROUPS[newLang];
-        if (newGroup === currentLangGroup) return;
+        if (newGroup === currentLangGroup && isRecording) return;
 
         for (var j = 0; j < langChips.length; j++) {
           langChips[j].classList.remove('langbar__chip--active');
@@ -1499,9 +1499,14 @@
         this.classList.add('langbar__chip--active');
 
         if (recognition) {
-          recognition.lang = newLang;
           if (isRecording) {
             try { recognition.stop(); } catch (e) {}
+            setTimeout(function() {
+              recognition.lang = newLang;
+              try { recognition.start(); } catch (e) {}
+            }, 100);
+          } else {
+            recognition.lang = newLang;
           }
         }
 
@@ -1513,10 +1518,9 @@
             translateText(newLang, LANG_NAMES[newLang]);
           }
         } else if (!finalTranscript.trim()) {
-          console.log('Language switched to ' + LANG_NAMES[newLang] + '. Click mic to start recording.');
           if (!isRecording && recognition) {
             startRecording();
-            showToast('Recording started in ' + LANG_NAMES[newLang], 'success');
+            showToast('Recording in ' + LANG_NAMES[newLang], 'success');
           }
         }
 
