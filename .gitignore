@@ -2,8 +2,6 @@ __pycache__/
 *.pyc
 build/
 *.spec
-dist/
-dictation_app/
 groq.key
 api-key.js
 .env
