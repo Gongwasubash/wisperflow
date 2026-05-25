@@ -208,6 +208,13 @@ class DictationBar:
         self.ime_frame = None
         self.suggestion_frame = None
         self.ime_preview = None
+        self.liveMode = False
+        self.imeBuffer = ''
+        self._imeTypingOutput = False
+        self._prevTextContent = ''
+        self._pasteDebounceTimer = None
+        self._forwardTimer = None
+        keyboard.hook(self._ime_global_callback)
 
         root.title("WhisperFlow")
         root.overrideredirect(True)
@@ -300,8 +307,8 @@ class DictationBar:
         self.expand_frame = tk.Frame(main_frame, bg=self.BG)
         self.text_box = tk.Text(self.expand_frame, bg=self.BG2, fg=self.FG,
                                 insertbackground=self.FG, font=self.mono_font,
-                                relief="flat", bd=0, height=5, wrap="word",
-                                state="disabled")
+                                relief="flat", bd=0, height=5, wrap="word")
+        self.text_box.bind("<KeyRelease>", self._on_text_box_edit)
         self.text_box.pack(fill="both", expand=True, padx=0, pady=(6, 0))
 
         self.options_row = tk.Frame(self.expand_frame, bg=self.BG)
@@ -385,6 +392,17 @@ class DictationBar:
         self.sym_btn.pack(side="left", padx=(6, 0))
         self.sym_packed = False
         self.update_sym_btn()
+        self.live_btn = tk.Button(self.options_row,
+                                  text="Live: OFF",
+                                  command=self.toggle_live_mode,
+                                  bg=self.BG2, fg=self.FG2,
+                                  activebackground="#2A2A2A",
+                                  activeforeground=self.FG,
+                                  bd=0, padx=6, pady=0,
+                                  font=("Segoe UI", 8),
+                                  cursor="hand2",
+                                  highlightthickness=0)
+        self.live_btn.pack(side="left", padx=(12, 0))
         self.options_row.pack(fill="x", pady=(2, 4))
 
         # IME mode components (hidden by default)
@@ -523,12 +541,78 @@ class DictationBar:
             one_line = one_line[:57] + "..."
         self.preview.config(text=one_line)
 
+    def _on_text_box_edit(self, event=None):
+        if self.recording:
+            return
+        content = self.text_box.get("1.0", "end-1c")
+        self.current_text = content
+        self.unicode_text = content
+        self.accumulated_text = content
+        self.update_preview(content)
+        self._prevTextContent = content
+        if self._forwardTimer:
+            self.root.after_cancel(self._forwardTimer)
+        self._forwardTimer = self.root.after(30, lambda: self._forward_to_active(content))
+
+    def _forward_to_active(self, new_content):
+        if self.recording or not self.root.winfo_exists():
+            return
+        try:
+            self._imeTypingOutput = True
+            self.text_box.config(state="disabled")
+            x = self.root.winfo_x()
+            y = self.root.winfo_y()
+            self.root.withdraw()
+            self.root.update()
+            time.sleep(0.12)
+            mode = self.mode_var.get()
+            if mode == "type":
+                self._forward_type_delta(new_content)
+            else:
+                if new_content:
+                    pyperclip.copy(new_content)
+                    time.sleep(0.04)
+                    keyboard.send("ctrl+a")
+                    time.sleep(0.03)
+                    keyboard.send("ctrl+v")
+                    time.sleep(0.03)
+        except Exception as e:
+            print(f"Forward error: {e}")
+        finally:
+            self._imeTypingOutput = False
+            try:
+                self.root.deiconify()
+            except Exception:
+                pass
+            try:
+                self.root.lift()
+                self.root.focus_force()
+            except Exception:
+                pass
+            if not (self.recording or self.liveMode):
+                self.text_box.config(state="normal")
+
+    def _forward_type_delta(self, new_content):
+        old = self._prevTextContent
+        if new_content == old:
+            return
+        i = 0
+        while i < len(old) and i < len(new_content) and old[i] == new_content[i]:
+            i += 1
+        delete_count = len(old) - i
+        new_part = new_content[i:]
+        if delete_count > 0:
+            keyboard.write('\b' * delete_count, delay=0.005)
+        if new_part:
+            keyboard.write(new_part, delay=0.005)
+
     def show_text(self, text):
         self.current_text = text
         self.text_box.config(state="normal")
         self.text_box.delete("1.0", "end")
         self.text_box.insert("end", text)
-        self.text_box.config(state="disabled")
+        if self.recording or self.liveMode:
+            self.text_box.config(state="disabled")
         self.text_box.see("end")
         self.update_preview(text)
         if text and not self.is_expanded:
@@ -866,6 +950,7 @@ class DictationBar:
         self.rec_start_time = time.time()
         self.set_status(True)
         self.set_lang_chips(True)
+        self.text_box.config(state="disabled")
         self.preview.config(text=f"Recording [{self.selected_lang.upper()}]...")
 
         def worker():
@@ -910,6 +995,7 @@ class DictationBar:
         self.audio_buffer = []
 
         if len(audio_data) < SAMPLE_RATE // 4:
+            self.text_box.config(state="normal")
             self.preview.config(text="Too short - say more")
             return
 
@@ -941,6 +1027,178 @@ class DictationBar:
             self.auto_type_on_done = False
             print(f"[DEBUG] Starting auto-typing...")
             self.root.after(150, self.type_text)
+
+    def toggle_live_mode(self):
+        if self.liveMode:
+            self._ime_system_disable()
+        else:
+            self._ime_system_enable()
+
+    def _ime_system_enable(self):
+        self.liveMode = True
+        self.imeBuffer = ''
+        self._prevTextContent = ''
+        self.live_btn.config(text="Live: ON", bg=self.ACCENT, fg="#000")
+
+        if not self.is_expanded:
+            self.expand()
+        self.ime_input.config(state="normal")
+        self.ime_input.delete(0, "end")
+        self.ime_input.config(state="disabled")
+        self.ime_preview.config(text="")
+        self._ime_clear_suggestions()
+        self.ime_frame.pack(fill="x", expand=False, padx=10, pady=(0, 6))
+
+        self.preview.config(text="IME active — type in any app")
+
+    def _ime_system_disable(self):
+        self.liveMode = False
+        self.live_btn.config(text="Live: OFF", bg=self.BG2, fg=self.FG2)
+        self.ime_frame.pack_forget()
+        self._ime_clear_suggestions()
+        self.imeBuffer = ''
+        self.ime_input.config(state="normal")
+        self.text_box.config(state="normal")
+
+        self.preview.config(text="IME stopped")
+        if not self.accumulated_text and not self.current_text:
+            self.collapse()
+
+    def _ime_global_callback(self, event):
+        if not self.liveMode:
+            return True
+        if self._imeTypingOutput:
+            self._imeTypingOutput = False
+            return True
+        if event.event_type != 'down':
+            return True
+        try:
+            if self.text_box == self.root.focus_get():
+                return True
+        except Exception:
+            pass
+
+        key = event.name
+
+        if key in ('1', '2', '3', '4') and self.ime_suggestions:
+            idx = int(key) - 1
+            if idx < len(self.ime_suggestions):
+                self.root.after(0, lambda i=idx: self._ime_system_select(i))
+            return True
+
+        if len(key) == 1 and key.isalpha() and key.isascii():
+            self.imeBuffer += key.lower()
+            self.root.after(0, self._ime_system_update_ui)
+            return True
+
+        if key in ('space', 'enter'):
+            self.root.after(0, lambda k=key: self._ime_system_commit(k))
+            return True
+
+        if key == 'backspace':
+            if self.imeBuffer:
+                self.imeBuffer = self.imeBuffer[:-1]
+                self.root.after(0, self._ime_system_update_ui)
+            return True
+
+        return True
+
+    def _ime_system_update_ui(self):
+        self.ime_input.config(state="normal")
+        self.ime_input.delete(0, "end")
+        self.ime_input.insert(0, self.imeBuffer)
+        self.ime_input.config(state="disabled")
+
+        if self.imeBuffer:
+            dev = roman_to_devanagari(self.imeBuffer)
+            if self.num_mode:
+                dev = to_nepali_digits(dev)
+            self.ime_preview.config(text=dev)
+            suggestions = get_suggestions(self.imeBuffer)
+            self._ime_show_suggestions(suggestions)
+        else:
+            self.ime_preview.config(text="")
+            self._ime_clear_suggestions()
+
+    def _ime_system_commit(self, trigger_key='space'):
+        if not self.imeBuffer:
+            return
+        roman = self.imeBuffer
+        delete_count = len(roman) + (1 if trigger_key == 'space' else 0)
+        self.imeBuffer = ''
+        self._ime_system_update_ui()
+
+        dev = roman_to_devanagari(roman)
+        if self.num_mode:
+            dev = to_nepali_digits(dev)
+        output = unicodedata.normalize("NFC", unicode_to_preeti(dev) if self.preeti_mode else dev)
+
+        if self.unicode_text:
+            self.unicode_text += " " + dev
+        else:
+            self.unicode_text = dev
+        display = unicode_to_preeti(self.unicode_text) if self.preeti_mode else self.unicode_text
+        self.accumulated_text = display
+        self.show_text(display)
+
+        self._ime_replace_text(delete_count, output + " ")
+
+    def _ime_system_select(self, index):
+        if index < 0 or index >= len(self.ime_suggestions):
+            return
+        roman, dev = self.ime_suggestions[index]
+        delete_count = len(self.imeBuffer) + 1
+        self.imeBuffer = ''
+        self._ime_system_update_ui()
+
+        if self.num_mode:
+            dev = to_nepali_digits(dev)
+        output = unicodedata.normalize("NFC", unicode_to_preeti(dev) if self.preeti_mode else dev)
+
+        if self.unicode_text:
+            self.unicode_text += " " + dev
+        else:
+            self.unicode_text = dev
+        display = unicode_to_preeti(self.unicode_text) if self.preeti_mode else self.unicode_text
+        self.accumulated_text = display
+        self.show_text(display)
+
+        self._ime_replace_text(delete_count, output + " ")
+
+    def _ime_replace_text(self, delete_count, new_text):
+        if not new_text.strip():
+            return
+        try:
+            self._imeTypingOutput = True
+            x = self.root.winfo_x()
+            y = self.root.winfo_y()
+            self.root.withdraw()
+            self.root.update()
+            time.sleep(0.08)
+
+            if delete_count > 0:
+                keyboard.write('\b' * delete_count, delay=0.01)
+                time.sleep(0.02)
+
+            mode = self.mode_var.get()
+            if mode == "type":
+                keyboard.write(new_text, delay=0.005)
+            else:
+                pyperclip.copy(new_text)
+                time.sleep(0.05)
+                keyboard.send("ctrl+v")
+                time.sleep(0.03)
+
+            self.root.deiconify()
+            if x >= 0 and y >= 0:
+                self.root.geometry(f"+{x}+{y}")
+        except Exception as e:
+            print(f"IME replace error: {e}")
+            self._imeTypingOutput = False
+            try:
+                self.root.deiconify()
+            except Exception:
+                pass
 
     def show_error(self, msg):
         self.set_status(False)
@@ -984,7 +1242,10 @@ class DictationBar:
         self.current_text = ""
         self.unicode_text = ""
         self.show_text("")
+        if not self.recording and not self.liveMode:
+            self.text_box.config(state="normal")
         self.preview.config(text="")
+        self.ime_input.config(state="normal")
         if self.ime_mode:
             self.ime_input.delete(0, "end")
             self.ime_preview.config(text="")
@@ -1024,6 +1285,8 @@ class DictationBar:
                 pass
 
     def close(self):
+        if self.liveMode:
+            self._ime_system_disable()
         self.recording = False
         if self.ime_mode:
             self._ime_disable()
@@ -1048,7 +1311,12 @@ def toggle_dictation_bar():
     global bar
     if bar is None:
         return
-    if bar.is_visible() and bar.recording:
+    if bar.liveMode:
+        bar._ime_system_disable()
+        bar.close()
+        if tray_icon:
+            tray_icon.icon = create_icon_image(False)
+    elif bar.is_visible() and bar.recording:
         bar.stop_recording(auto_type=True)
     elif bar.is_visible():
         if bar.ime_mode:
